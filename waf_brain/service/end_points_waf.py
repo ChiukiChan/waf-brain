@@ -3,6 +3,7 @@ import aiohttp
 import logging
 
 from sanic import response, Blueprint
+from sanic.request import Request
 
 from waf_brain.inferring import process_payload
 
@@ -20,7 +21,7 @@ waf_blueprint = Blueprint("waf_brain")
                          "HEAD",
                          "OPTIONS"
                      ])
-async def waf(request, path):
+async def waf(request: Request, path):
     MODEL = request.app.config["MODEL"]
     PROTECTED_URL = request.app.config["PROTECTED_URL"]
     BLOCKING_MODE = request.app.config["BLOCKING_MODE"]
@@ -28,7 +29,8 @@ async def waf(request, path):
     TIMEOUT_BACKEND = request.app.config["TIMEOUT_BACKEND"]
 
     total = []
-    for arg, val in request.raw_args.items():
+    print(request.query_args)
+    for arg, val in request.query_args:
         total.append(process_payload(
             MODEL,
             arg,
@@ -48,20 +50,19 @@ async def waf(request, path):
     #
     # Send the original request to the api
     #
-    async with aiohttp.ClientSession(cookies=request.cookies,
-                                     read_timeout=TIMEOUT_BACKEND) as session:
+    async with aiohttp.ClientSession(cookies=request.cookies, read_timeout=TIMEOUT_BACKEND) as session:
 
         async with session.request(
                 request.method,
-                PROTECTED_URL,
+                "http://127.0.0.1:80/" + path,
                 headers=request.headers,
                 data=request.body,
-                params=request.raw_args) as resp:
+                params=request.query_args) as resp:
 
-            body = await resp.text()
+            body = await resp.content.read()
 
             return response.raw(
-                body=body.encode(),
+                body=body,
                 status=resp.status,
                 headers=dict(resp.headers),
                 content_type=resp.content_type
