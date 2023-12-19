@@ -54,7 +54,7 @@ async def waf(request: Request, path):
 
         async with session.request(
                 request.method,
-                "http://127.0.0.1:80/" + path,
+                PROTECTED_URL + path,
                 headers=request.headers,
                 data=request.body,
                 params=request.query_args) as resp:
